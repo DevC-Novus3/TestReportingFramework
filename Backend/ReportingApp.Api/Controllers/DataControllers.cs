@@ -9,23 +9,43 @@ namespace ReportingApp.Api.Controllers
     public class DataController : ControllerBase
     {
         private readonly NodeRedService _nodeRedService;
+        private readonly DataSourceService _dataSourceService;
         private readonly ILogger<DataController> _logger;
 
-        public DataController(NodeRedService nodeRedService, ILogger<DataController> logger)
+        public DataController(NodeRedService nodeRedService, DataSourceService dataSourceService, ILogger<DataController> logger)
         {
             _nodeRedService = nodeRedService;
+            _dataSourceService = dataSourceService;
             _logger = logger;
         }
 
-        [HttpGet("schema/{*endpoint}")]
-        public async Task<IActionResult> GetDataSchema(string endpoint)
+        [HttpGet("sources")]
+        public IActionResult GetDataSources()
+        {
+            var sources = _dataSourceService.GetAllDataSources();
+            return Ok(sources);
+        }
+
+        [HttpGet("sources/categories")]
+        public IActionResult GetCategories()
+        {
+            var categories = _dataSourceService.GetCategories();
+            return Ok(categories);
+        }
+
+        [HttpGet("sources/category/{category}")]
+        public IActionResult GetDataSourcesByCategory(string category)
+        {
+            var sources = _dataSourceService.GetDataSourcesByCategory(category);
+            return Ok(sources);
+        }
+
+        [HttpPost("schema")]
+        public async Task<IActionResult> GetDataSchema([FromBody] DataSourceRequest request)
         {
             try
             {
-                if (!endpoint.StartsWith("/"))
-                    endpoint = "/" + endpoint;
-                    
-                var data = await _nodeRedService.GetDataSchemaAsync(endpoint);
+                var data = await _nodeRedService.GetDataWithFiltersAsync(request);
                 return Ok(data);
             }
             catch (Exception ex)
@@ -35,43 +55,18 @@ namespace ReportingApp.Api.Controllers
             }
         }
 
-        [HttpGet("data/{*endpoint}")]
-        public async Task<IActionResult> GetData(string endpoint)
+        [HttpPost("data")]
+        public async Task<IActionResult> GetData([FromBody] DataSourceRequest request)
         {
             try
             {
-                if (!endpoint.StartsWith("/"))
-                    endpoint = "/" + endpoint;
-                    
-                var data = await _nodeRedService.GetBulkDataAsync(endpoint);
+                var data = await _nodeRedService.GetBulkDataWithFiltersAsync(request);
                 return Ok(data);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting data");
                 return StatusCode(500, new { error = "Failed to fetch data", details = ex.Message });
-            }
-        }
-
-        [HttpGet("test-nodered")]
-        public async Task<IActionResult> TestNodeRed()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var response = await client.GetAsync("http://localhost:1880/api/sensor-data");
-                var content = await response.Content.ReadAsStringAsync();
-                return Ok(new { 
-                    statusCode = response.StatusCode,
-                    isSuccess = response.IsSuccessStatusCode,
-                    content = content.Substring(0, Math.Min(content.Length, 500)), // First 500 chars
-                    url = "http://localhost:1880/api/sensor-data",
-                    headers = response.Headers.ToString()
-                });
-            }
-            catch (Exception ex)
-            {
-                return Ok(new { error = ex.Message, type = ex.GetType().Name });
             }
         }
     }

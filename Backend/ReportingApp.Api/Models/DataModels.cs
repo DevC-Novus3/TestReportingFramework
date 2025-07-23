@@ -1,9 +1,32 @@
 namespace ReportingApp.Api.Models
 {
+    public class DataSource
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string NodeRedEndpoint { get; set; } = "";
+        public List<string> AvailableFilters { get; set; } = new();
+    }
+
+    public class DataSourceFilter
+    {
+        public string FilterName { get; set; } = "";
+        public string FilterValue { get; set; } = "";
+    }
+
+    public class DataSourceRequest
+    {
+        public string DataSourceId { get; set; } = "";
+        public List<DataSourceFilter> Filters { get; set; } = new();
+    }
+
     public class NodeRedData
     {
         public Dictionary<string, object> Data { get; set; } = new();
         public List<string> AvailableFields { get; set; } = new();
+        public Dictionary<string, List<string>> AvailableFilterValues { get; set; } = new();
     }
 
     public class ReportRequest

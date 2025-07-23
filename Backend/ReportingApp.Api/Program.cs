@@ -19,10 +19,12 @@ builder.Services.AddCors(options =>
 });
 
 // Register services
+builder.Services.AddSingleton<DataSourceService>();
 builder.Services.AddHttpClient<NodeRedService>();
 builder.Services.AddScoped<ReportGeneratorService>();
 builder.Services.AddScoped<DataTransformationService>();
 
+// Add logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);

@@ -8,102 +8,134 @@ namespace ReportingApp.Api.Services
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
         private readonly ILogger<NodeRedService> _logger;
+        private readonly DataSourceService _dataSourceService;
 
-        public NodeRedService(HttpClient httpClient, IConfiguration configuration, ILogger<NodeRedService> logger)
+        public NodeRedService(HttpClient httpClient, IConfiguration configuration, 
+            ILogger<NodeRedService> logger, DataSourceService dataSourceService)
         {
             _httpClient = httpClient;
             _configuration = configuration;
             _logger = logger;
+            _dataSourceService = dataSourceService;
             
             var baseUrl = _configuration["NodeRed:BaseUrl"] ?? "http://localhost:1880";
             _logger.LogInformation($"NodeRed BaseUrl configured as: {baseUrl}");
             
-            // Make sure base URL ends with /
             if (!baseUrl.EndsWith("/"))
                 baseUrl += "/";
                 
             _httpClient.BaseAddress = new Uri(baseUrl);
-            _logger.LogInformation($"HttpClient BaseAddress set to: {_httpClient.BaseAddress}");
         }
 
-        public async Task<NodeRedData> GetDataSchemaAsync(string endpoint)
+        public async Task<NodeRedData> GetDataWithFiltersAsync(DataSourceRequest request)
         {
-            try
+            var dataSource = _dataSourceService.GetDataSourceById(request.DataSourceId);
+            if (dataSource == null)
             {
-                // Clean up the endpoint
-                if (endpoint.StartsWith("/"))
-                    endpoint = endpoint.Substring(1);
-                    
-                var fullUrl = new Uri(_httpClient.BaseAddress, endpoint).ToString();
-                _logger.LogInformation($"Attempting to fetch from Node-RED: {fullUrl}");
-                
-                var response = await _httpClient.GetAsync(endpoint);
-                
-                _logger.LogInformation($"Response status: {response.StatusCode}");
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError($"Node-RED error response: {errorContent}");
-                }
-                
-                response.EnsureSuccessStatusCode();
-
-                var jsonString = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation($"Received data length: {jsonString.Length} characters");
-                
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                
-                var data = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, options);
-
-                if (data == null || !data.Any())
-                {
-                    return new NodeRedData();
-                }
-
-                return new NodeRedData
-                {
-                    Data = data.First(),
-                    AvailableFields = data.First().Keys.ToList()
-                };
+                throw new ArgumentException($"Data source with ID '{request.DataSourceId}' not found");
             }
-            catch (Exception ex)
+
+            var endpoint = dataSource.NodeRedEndpoint;
+            if (endpoint.StartsWith("/"))
+                endpoint = endpoint.Substring(1);
+
+            // Build query string from filters
+            var queryParams = new List<string>();
+            foreach (var filter in request.Filters)
             {
-                _logger.LogError(ex, $"Error fetching data schema from Node-RED for endpoint: {endpoint}");
-                throw;
+                queryParams.Add($"{filter.FilterName}={Uri.EscapeDataString(filter.FilterValue)}");
             }
+            
+            if (queryParams.Any())
+            {
+                endpoint += "?" + string.Join("&", queryParams);
+            }
+
+            var fullUrl = new Uri(_httpClient.BaseAddress, endpoint).ToString();
+            _logger.LogInformation($"Fetching data from Node-RED: {fullUrl}");
+
+            var response = await _httpClient.GetAsync(endpoint);
+            response.EnsureSuccessStatusCode();
+
+            var jsonString = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<Dictionary<string, object>>();
+
+            // Extract available filter values from the data
+            var filterValues = new Dictionary<string, List<string>>();
+            foreach (var filterName in dataSource.AvailableFilters)
+            {
+                var values = data
+                    .Where(row => row.ContainsKey(filterName))
+                    .Select(row => row[filterName]?.ToString() ?? "")
+                    .Where(val => !string.IsNullOrEmpty(val))
+                    .Distinct()
+                    .OrderBy(val => val)
+                    .ToList();
+                
+                if (values.Any())
+                {
+                    filterValues[filterName] = values;
+                }
+            }
+
+            return new NodeRedData
+            {
+                Data = data.FirstOrDefault() ?? new Dictionary<string, object>(),
+                AvailableFields = data.FirstOrDefault()?.Keys.ToList() ?? new List<string>(),
+                AvailableFilterValues = filterValues
+            };
         }
 
-        public async Task<List<Dictionary<string, object>>> GetBulkDataAsync(string endpoint)
+        public async Task<List<Dictionary<string, object>>> GetBulkDataWithFiltersAsync(DataSourceRequest request)
         {
-            try
+            var dataSource = _dataSourceService.GetDataSourceById(request.DataSourceId);
+            if (dataSource == null)
             {
-                // Clean up the endpoint
-                if (endpoint.StartsWith("/"))
-                    endpoint = endpoint.Substring(1);
-                    
-                var fullUrl = new Uri(_httpClient.BaseAddress, endpoint).ToString();
-                _logger.LogInformation($"Attempting to fetch bulk data from Node-RED: {fullUrl}");
-                
-                var response = await _httpClient.GetAsync(endpoint);
-                response.EnsureSuccessStatusCode();
+                throw new ArgumentException($"Data source with ID '{request.DataSourceId}' not found");
+            }
 
-                var jsonString = await response.Content.ReadAsStringAsync();
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                
-                return JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, options) ?? new List<Dictionary<string, object>>();
-            }
-            catch (Exception ex)
+            var endpoint = dataSource.NodeRedEndpoint;
+            if (endpoint.StartsWith("/"))
+                endpoint = endpoint.Substring(1);
+
+            // Build query string from filters
+            var queryParams = new List<string>();
+            foreach (var filter in request.Filters)
             {
-                _logger.LogError(ex, "Error fetching bulk data from Node-RED");
-                throw;
+                queryParams.Add($"{filter.FilterName}={Uri.EscapeDataString(filter.FilterValue)}");
             }
+            
+            if (queryParams.Any())
+            {
+                endpoint += "?" + string.Join("&", queryParams);
+            }
+
+            var fullUrl = new Uri(_httpClient.BaseAddress, endpoint).ToString();
+            _logger.LogInformation($"Fetching bulk data from Node-RED: {fullUrl}");
+
+            var response = await _httpClient.GetAsync(endpoint);
+            response.EnsureSuccessStatusCode();
+
+            var jsonString = await response.Content.ReadAsStringAsync();
+            var allData = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<Dictionary<string, object>>();
+
+            // Apply filters on the client side if Node-RED doesn't support query params
+            var filteredData = allData;
+            foreach (var filter in request.Filters)
+            {
+                filteredData = filteredData.Where(row => 
+                    row.ContainsKey(filter.FilterName) && 
+                    row[filter.FilterName]?.ToString() == filter.FilterValue
+                ).ToList();
+            }
+
+            return filteredData;
         }
     }
 }
