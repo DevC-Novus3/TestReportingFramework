@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "5+Ft6KyO/74=",
+  "dgSpecHash": "Whz+mru1YJ8=",
   "success": true,
-  "projectFilePath": "/Users/devoncowling/ReportingApp/Backend/ReportingApp.Api/ReportingApp.Api.csproj",
+  "projectFilePath": "/Users/devoncowling/Novus³ Dropbox/Devon Cowling/TEMP/TestReportingFramework/Backend/ReportingApp.Api/ReportingApp.Api.csproj",
   "expectedPackageFiles": [
     "/Users/devoncowling/.nuget/packages/documentformat.openxml/3.0.0/documentformat.openxml.3.0.0.nupkg.sha512",
     "/Users/devoncowling/.nuget/packages/documentformat.openxml.framework/3.0.0/documentformat.openxml.framework.3.0.0.nupkg.sha512",

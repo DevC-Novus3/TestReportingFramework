@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/devoncowling/ReportingApp/Backend/ReportingApp.Api/ReportingApp.Api.csproj": {}
+    "/Users/devoncowling/Novus³ Dropbox/Devon Cowling/TEMP/TestReportingFramework/Backend/ReportingApp.Api/ReportingApp.Api.csproj": {}
   },
   "projects": {
-    "/Users/devoncowling/ReportingApp/Backend/ReportingApp.Api/ReportingApp.Api.csproj": {
+    "/Users/devoncowling/Novus³ Dropbox/Devon Cowling/TEMP/TestReportingFramework/Backend/ReportingApp.Api/ReportingApp.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/devoncowling/ReportingApp/Backend/ReportingApp.Api/ReportingApp.Api.csproj",
+        "projectUniqueName": "/Users/devoncowling/Novus³ Dropbox/Devon Cowling/TEMP/TestReportingFramework/Backend/ReportingApp.Api/ReportingApp.Api.csproj",
         "projectName": "ReportingApp.Api",
-        "projectPath": "/Users/devoncowling/ReportingApp/Backend/ReportingApp.Api/ReportingApp.Api.csproj",
+        "projectPath": "/Users/devoncowling/Novus³ Dropbox/Devon Cowling/TEMP/TestReportingFramework/Backend/ReportingApp.Api/ReportingApp.Api.csproj",
         "packagesPath": "/Users/devoncowling/.nuget/packages/",
-        "outputPath": "/Users/devoncowling/ReportingApp/Backend/ReportingApp.Api/obj/",
+        "outputPath": "/Users/devoncowling/Novus³ Dropbox/Devon Cowling/TEMP/TestReportingFramework/Backend/ReportingApp.Api/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/devoncowling/.nuget/NuGet/NuGet.Config"
