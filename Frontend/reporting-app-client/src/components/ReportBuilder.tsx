@@ -35,7 +35,7 @@ import { DragDropField } from './DragDropField';
 import { ChartBuilder } from './ChartBuilder';
 import { DataPreview } from './DataPreview';
 import { DataSourceSelector } from './DataSourceSelector';
-import { FilterPanel } from './FilterPanel';
+// import { FilterPanel } from './FilterPanel';
 import { SidePanel } from './SidePanel';
 import { dataService } from '../services/api';
 import { 
@@ -62,8 +62,8 @@ export const ReportBuilder: React.FC = () => {
   const [outputType, setOutputType] = useState<'table' | 'chart'>('table');
   const [showPreview, setShowPreview] = useState(false);
   const [currentDataSource, setCurrentDataSource] = useState<string>('');
-  const [availableFilterValues, setAvailableFilterValues] = useState<Record<string, string[]>>({});
-  const [selectedFilters, setSelectedFilters] = useState<DataSourceFilter[]>([]);
+  // const [availableFilterValues, setAvailableFilterValues] = useState<Record<string, string[]>>({});
+  // const [selectedFilters, setSelectedFilters] = useState<DataSourceFilter[]>([]);
   const [showDataSourceSelector, setShowDataSourceSelector] = useState(true);
 
   const dropRef = useRef<HTMLDivElement>(null);
@@ -81,7 +81,6 @@ export const ReportBuilder: React.FC = () => {
     setLoading(true);
     setError(null);
     setCurrentDataSource(dataSourceId);
-    setSelectedFilters(filters);
     
     try {
       const request: DataSourceRequest = {
@@ -91,27 +90,32 @@ export const ReportBuilder: React.FC = () => {
 
       const schema = await dataService.getSchema(request);
       setAvailableFields(schema.availableFields);
-      setAvailableFilterValues(schema.availableFilterValues);
       
       const fullData = await dataService.getData(request);
       setData(fullData);
       
-      setSuccessMessage(`Loaded ${fullData.length} records with ${schema.availableFields.length} fields`);
+      const filterText = filters.length > 0 
+        ? ` with ${filters.length} filter${filters.length > 1 ? 's' : ''} applied`
+        : '';
+      
+      setSuccessMessage(`Loaded ${fullData.length} records with ${schema.availableFields.length} fields${filterText}`);
       setShowDataSourceSelector(false);
     } catch (error: any) {
-      setError(error.response?.data?.details || 'Error loading data. Check connection.');
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || 'Error loading data. Check connection and filter values.';
+      setError(errorMessage);
       setAvailableFields([]);
       setData([]);
+      // Don't hide the data source selector on error so user can fix filters
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApplyFilters = async () => {
-    if (currentDataSource) {
-      await loadData(currentDataSource, selectedFilters);
-    }
-  };
+  // const handleApplyFilters = async () => {
+  //   if (currentDataSource) {
+  //     await loadData(currentDataSource, selectedFilters);
+  //   }
+  // };
 
   const handleChangeDataSource = () => {
     setShowDataSourceSelector(true);
@@ -119,8 +123,6 @@ export const ReportBuilder: React.FC = () => {
     setSelectedFields([]);
     setData([]);
     setCharts([]);
-    setSelectedFilters([]);
-    setAvailableFilterValues({});
   };
 
   const [{ isOver }, drop] = useDrop<DragItem, unknown, { isOver: boolean }>(() => ({
@@ -303,14 +305,6 @@ export const ReportBuilder: React.FC = () => {
                                 size="small"
                                 sx={{ fontWeight: 600 }}
                               />
-                              {selectedFilters.length > 0 && (
-                                <Chip
-                                  label={`${selectedFilters.length} filters`}
-                                  color="info"
-                                  size="small"
-                                  sx={{ fontWeight: 600 }}
-                                />
-                              )}
                             </Box>
                           )}
                         </Box>
@@ -327,7 +321,7 @@ export const ReportBuilder: React.FC = () => {
                     </Paper>
                   </Slide>
 
-                  {Object.keys(availableFilterValues).length > 0 && (
+                  {/* {Object.keys(availableFilterValues).length > 0 && (
                     <Grow in={true} timeout={700}>
                       <Box>
                         <FilterPanel
@@ -338,7 +332,7 @@ export const ReportBuilder: React.FC = () => {
                         />
                       </Box>
                     </Grow>
-                  )}
+                  )} */}
                 </>
               )}
 

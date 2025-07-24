@@ -39,7 +39,7 @@ namespace ReportingApp.Api.Services
             if (endpoint.StartsWith("/"))
                 endpoint = endpoint.Substring(1);
 
-            // Build query string from filters
+            // Build query string from filters using & instead of ?
             var queryParams = new List<string>();
             foreach (var filter in request.Filters)
             {
@@ -48,45 +48,65 @@ namespace ReportingApp.Api.Services
             
             if (queryParams.Any())
             {
-                endpoint += "?" + string.Join("&", queryParams);
+                endpoint += "&" + string.Join("&", queryParams);
             }
 
             var fullUrl = new Uri(_httpClient.BaseAddress, endpoint).ToString();
             _logger.LogInformation($"Fetching data from Node-RED: {fullUrl}");
 
-            var response = await _httpClient.GetAsync(endpoint);
-            response.EnsureSuccessStatusCode();
-
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var data = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, new JsonSerializerOptions
+            try
             {
-                PropertyNameCaseInsensitive = true
-            }) ?? new List<Dictionary<string, object>>();
-
-            // Extract available filter values from the data
-            var filterValues = new Dictionary<string, List<string>>();
-            foreach (var filterName in dataSource.AvailableFilters)
-            {
-                var values = data
-                    .Where(row => row.ContainsKey(filterName))
-                    .Select(row => row[filterName]?.ToString() ?? "")
-                    .Where(val => !string.IsNullOrEmpty(val))
-                    .Distinct()
-                    .OrderBy(val => val)
-                    .ToList();
+                var response = await _httpClient.GetAsync(endpoint);
                 
-                if (values.Any())
+                if (!response.IsSuccessStatusCode)
                 {
-                    filterValues[filterName] = values;
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Node-RED returned {response.StatusCode}: {errorContent}");
+                    
+                    // Parse error to identify which filter caused the issue
+                    var invalidFilters = request.Filters
+                        .Where(f => errorContent.Contains(f.FilterName) || errorContent.Contains(f.FilterValue))
+                        .Select(f => $"{f.FilterName}='{f.FilterValue}'")
+                        .ToList();
+                    
+                    if (invalidFilters.Any())
+                    {
+                        throw new InvalidOperationException($"Invalid filter value(s): {string.Join(", ", invalidFilters)}. Please check your filter values and try again.");
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Failed to load data. The API returned an error. Please check your filter values.");
+                    }
                 }
-            }
 
-            return new NodeRedData
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var data = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<Dictionary<string, object>>();
+
+                // No need to extract filter values since we're pre-filtering
+                return new NodeRedData
+                {
+                    Data = data.FirstOrDefault() ?? new Dictionary<string, object>(),
+                    AvailableFields = data.FirstOrDefault()?.Keys.ToList() ?? new List<string>(),
+                    AvailableFilterValues = new Dictionary<string, List<string>>() // Empty since we're pre-filtering
+                };
+            }
+            catch (HttpRequestException ex)
             {
-                Data = data.FirstOrDefault() ?? new Dictionary<string, object>(),
-                AvailableFields = data.FirstOrDefault()?.Keys.ToList() ?? new List<string>(),
-                AvailableFilterValues = filterValues
-            };
+                _logger.LogError(ex, "HTTP error when fetching data from Node-RED");
+                throw new InvalidOperationException("Failed to connect to data source. Please check your connection and try again.", ex);
+            }
+            catch (InvalidOperationException)
+            {
+                throw; // Re-throw our custom exceptions
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error when fetching data from Node-RED");
+                throw new InvalidOperationException("An unexpected error occurred while loading data. Please try again.", ex);
+            }
         }
 
         public async Task<List<Dictionary<string, object>>> GetBulkDataWithFiltersAsync(DataSourceRequest request)
@@ -101,7 +121,7 @@ namespace ReportingApp.Api.Services
             if (endpoint.StartsWith("/"))
                 endpoint = endpoint.Substring(1);
 
-            // Build query string from filters
+            // Build query string from filters using & instead of ?
             var queryParams = new List<string>();
             foreach (var filter in request.Filters)
             {
@@ -110,32 +130,58 @@ namespace ReportingApp.Api.Services
             
             if (queryParams.Any())
             {
-                endpoint += "?" + string.Join("&", queryParams);
+                endpoint += "&" + string.Join("&", queryParams);
             }
 
             var fullUrl = new Uri(_httpClient.BaseAddress, endpoint).ToString();
             _logger.LogInformation($"Fetching bulk data from Node-RED: {fullUrl}");
 
-            var response = await _httpClient.GetAsync(endpoint);
-            response.EnsureSuccessStatusCode();
-
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var allData = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, new JsonSerializerOptions
+            try
             {
-                PropertyNameCaseInsensitive = true
-            }) ?? new List<Dictionary<string, object>>();
+                var response = await _httpClient.GetAsync(endpoint);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Node-RED returned {response.StatusCode}: {errorContent}");
+                    
+                    var invalidFilters = request.Filters
+                        .Where(f => errorContent.Contains(f.FilterName) || errorContent.Contains(f.FilterValue))
+                        .Select(f => $"{f.FilterName}='{f.FilterValue}'")
+                        .ToList();
+                    
+                    if (invalidFilters.Any())
+                    {
+                        throw new InvalidOperationException($"Invalid filter value(s): {string.Join(", ", invalidFilters)}. Please check your filter values and try again.");
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Failed to load data. The API returned an error. Please check your filter values.");
+                    }
+                }
 
-            // Apply filters on the client side if Node-RED doesn't support query params
-            var filteredData = allData;
-            foreach (var filter in request.Filters)
-            {
-                filteredData = filteredData.Where(row => 
-                    row.ContainsKey(filter.FilterName) && 
-                    row[filter.FilterName]?.ToString() == filter.FilterValue
-                ).ToList();
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var allData = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(jsonString, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<Dictionary<string, object>>();
+
+                return allData;
             }
-
-            return filteredData;
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "HTTP error when fetching bulk data from Node-RED");
+                throw new InvalidOperationException("Failed to connect to data source. Please check your connection and try again.", ex);
+            }
+            catch (InvalidOperationException)
+            {
+                throw; // Re-throw our custom exceptions
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error when fetching bulk data from Node-RED");
+                throw new InvalidOperationException("An unexpected error occurred while loading data. Please try again.", ex);
+            }
         }
     }
 }
