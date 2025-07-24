@@ -12,6 +12,7 @@ import {
   MenuItem,
   SelectChangeEvent,
   CircularProgress,
+  alpha,
 } from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
 import { DataSource, DataSourceFilter } from '../types';
@@ -132,8 +133,21 @@ export const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelect
                   fullWidth
                   onClick={() => handleSelectDataSource(dataSource.id)}
                   disabled={loading}
+                  sx={{
+                    position: 'relative',
+                    '&.Mui-disabled': {
+                      backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                    },
+                  }}
                 >
-                  Load {dataSource.name}
+                  {loading ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CircularProgress size={20} color="inherit" />
+                      <span>Loading...</span>
+                    </Box>
+                  ) : (
+                    `Load ${dataSource.name}`
+                  )}
                 </Button>
               </CardContent>
             </Card>

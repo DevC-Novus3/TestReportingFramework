@@ -29,6 +29,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import TableViewIcon from '@mui/icons-material/TableView';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { LoadingOverlay } from './LoadingOverlay';
 import { Database, Layers } from 'lucide-react'; // Add this import
 import { DragDropField } from './DragDropField';
 import { ChartBuilder } from './ChartBuilder';
@@ -652,6 +653,11 @@ export const ReportBuilder: React.FC = () => {
               )}
             </Box>
           </Grow>
+
+          <LoadingOverlay 
+            open={loading} 
+            message={currentDataSource ? `Loading ${currentDataSource} data...` : 'Loading data...'} 
+          />
 
           {showPreview && (
             <DataPreview
